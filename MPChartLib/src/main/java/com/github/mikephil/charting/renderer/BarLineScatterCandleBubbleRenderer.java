@@ -74,6 +74,11 @@ public abstract class BarLineScatterCandleBubbleRenderer extends DataRenderer {
         public int range;
 
         /**
+         * rem of phaseX
+         */
+        public float rem;
+
+        /**
          * Calculates the minimum and maximum x values as well as the range between them.
          *
          * @param chart
@@ -91,6 +96,9 @@ public abstract class BarLineScatterCandleBubbleRenderer extends DataRenderer {
             min = entryFrom == null ? 0 : dataSet.getEntryIndex(entryFrom);
             max = entryTo == null ? 0 : dataSet.getEntryIndex(entryTo);
             range = (int) ((max - min) * phaseX);
+            float r = ((max - min) * phaseX);
+            range = (int) r;
+            rem = r - range;
         }
     }
 }

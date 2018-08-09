@@ -387,7 +387,8 @@ public class LineChartRenderer extends LineRadarRenderer {
             if (e1 != null) {
 
                 int j = 0;
-                for (int x = mXBounds.min; x <= mXBounds.range + mXBounds.min; x++) {
+                int to = mXBounds.range + mXBounds.min;
+                for (int x = mXBounds.min; x <= to; x++) {
 
                     e1 = dataSet.getEntryForIndex(x == 0 ? 0 : (x - 1));
                     e2 = dataSet.getEntryForIndex(x);
@@ -408,10 +409,25 @@ public class LineChartRenderer extends LineRadarRenderer {
                     mLineBuffer[j++] = e2.getY() * phaseY;
                 }
 
+                if (mXBounds.rem > 0f && to < mXBounds.max) {
+                    e1 = dataSet.getEntryForIndex(to);
+                    e2 = dataSet.getEntryForIndex(to + 1);
+                    if (e1 != null && e2 != null) {
+
+                        float targetX = e1.getX() + (e2.getX() - e1.getX()) * mXBounds.rem;
+                        float targetY = e1.getY() + (e2.getY() - e1.getY()) * mXBounds.rem;
+
+                        mLineBuffer[j++] = e1.getX();
+                        mLineBuffer[j++] = e1.getY() * phaseY;
+                        mLineBuffer[j++] = targetX;
+                        mLineBuffer[j++] = targetY * phaseY;
+                    }
+                }
+
                 if (j > 0) {
                     trans.pointValuesToPixel(mLineBuffer);
 
-                    final int size = Math.max((mXBounds.range + 1) * pointsPerEntryPair, pointsPerEntryPair) * 2;
+                    final int size = Math.max((mXBounds.range + 2) * pointsPerEntryPair, pointsPerEntryPair) * 2;
 
                     mRenderPaint.setColor(dataSet.getColor());
 
