@@ -209,22 +209,17 @@ public class LineChartRenderer extends LineRadarRenderer {
     //---------------------------------------------------
     // Taken from PathInterpolatorCompat
 
-    private static final float PRECISION = 0.1f;
-    private float[] mX;
-    private float[] mDistance;
+    private static final int NUM_POINTS = 50;
+    private float[] mX = new float[NUM_POINTS];
+    private float[] mDistance = new float[NUM_POINTS];
 
     private void breakdownPath(Path path) {
         pathMeasure.setPath(path, false);
 
         final float pathLength = pathMeasure.getLength();
-        final int numPoints = (int) (pathLength / PRECISION) + 1;
-
-        mX = new float[numPoints];
-        mDistance = new float[numPoints];
-
         final float[] position = new float[2];
-        for (int i = 0; i < numPoints; ++i) {
-            final float distance = (i * pathLength) / (numPoints - 1);
+        for (int i = 0; i < NUM_POINTS; ++i) {
+            final float distance = (i * pathLength) / (NUM_POINTS - 1);
             pathMeasure.getPosTan(distance, position, null /* tangent */);
 
             mDistance[i] = distance;
