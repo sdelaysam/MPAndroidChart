@@ -7,7 +7,6 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PathMeasure;
 import android.graphics.drawable.Drawable;
-import android.util.Log;
 
 import com.github.mikephil.charting.animation.ChartAnimator;
 import com.github.mikephil.charting.charts.LineChart;
@@ -135,6 +134,7 @@ public class LineChartRenderer extends LineRadarRenderer {
 
     protected void drawHorizontalBezier(ILineDataSet dataSet) {
 
+        float phaseX = mAnimator.getPhaseX();
         float phaseY = mAnimator.getPhaseY();
 
         Transformer trans = mChart.getTransformer(dataSet.getAxisDependency());
@@ -167,22 +167,30 @@ public class LineChartRenderer extends LineRadarRenderer {
             }
         }
 
-        // https://stackoverflow.com/a/29246301
-        animatedPath.reset();
-        pathMeasure.setPath(cubicPath, false);
-        float length = pathMeasure.getLength();
+        Path path;
+        if (phaseX < 1f) {
 
-        float progress = mXBounds.min + mXBounds.range + mXBounds.rem;
-        float rate = progress / mXBounds.max;
+            breakdownPath(cubicPath);
 
-        pathMeasure.getSegment(0.0f, length * rate, animatedPath, true);
-        animatedPath.rLineTo(0.0f, 0.0f); // workaround to display on hardware accelerated canvas as described in docs
+            float progress = mXBounds.min + mXBounds.range + mXBounds.rem;
+            float rate = progress / mXBounds.max;
+            float x = mX[mX.length - 1] * rate;
+
+            float distance = distanceFromX(x);
+            animatedPath.reset();
+            pathMeasure.getSegment(0.0f, distance, animatedPath, true);
+            animatedPath.rLineTo(0.0f, 0.0f); // workaround to display on hardware accelerated canvas as described in docs
+
+            path = animatedPath;
+        } else {
+            path = cubicPath;
+        }
 
         // if filled is enabled, close the path
         if (dataSet.isDrawFilledEnabled()) {
 
             cubicFillPath.reset();
-            cubicFillPath.addPath(animatedPath);
+            cubicFillPath.addPath(path);
             // create a new path, this is bad for performance
             drawCubicFill(mBitmapCanvas, dataSet, cubicFillPath, trans, mXBounds);
         }
@@ -191,12 +199,68 @@ public class LineChartRenderer extends LineRadarRenderer {
 
         mRenderPaint.setStyle(Paint.Style.STROKE);
 
-        trans.pathValueToPixel(animatedPath);
+        trans.pathValueToPixel(path);
 
-        mBitmapCanvas.drawPath(animatedPath, mRenderPaint);
+        mBitmapCanvas.drawPath(path, mRenderPaint);
 
         mRenderPaint.setPathEffect(null);
     }
+
+    //---------------------------------------------------
+    // Taken from PathInterpolatorCompat
+
+    private static final float PRECISION = 0.1f;
+    private float[] mX;
+    private float[] mDistance;
+
+    private void breakdownPath(Path path) {
+        pathMeasure.setPath(path, false);
+
+        final float pathLength = pathMeasure.getLength();
+        final int numPoints = (int) (pathLength / PRECISION) + 1;
+
+        mX = new float[numPoints];
+        mDistance = new float[numPoints];
+
+        final float[] position = new float[2];
+        for (int i = 0; i < numPoints; ++i) {
+            final float distance = (i * pathLength) / (numPoints - 1);
+            pathMeasure.getPosTan(distance, position, null /* tangent */);
+
+            mDistance[i] = distance;
+            mX[i] = position[0];
+        }
+    }
+
+    private float distanceFromX(float x) {
+        // Do a binary search for the correct x to interpolate between.
+        int startIndex = 0;
+        int endIndex = mX.length - 1;
+
+        while (endIndex - startIndex > 1) {
+            int midIndex = (startIndex + endIndex) / 2;
+            if (x < mX[midIndex]) {
+                endIndex = midIndex;
+            } else {
+                startIndex = midIndex;
+            }
+        }
+
+        float xRange = mX[endIndex] - mX[startIndex];
+        if (xRange == 0) {
+            return mDistance[startIndex];
+        }
+
+        float tInRange = x - mX[startIndex];
+        float fraction = tInRange / xRange;
+
+        float startDistance = mDistance[startIndex];
+        float endDistance = mDistance[endIndex];
+        return startDistance + (fraction * (endDistance - startDistance));
+
+    }
+
+    //---------------------------------------------------
 
     protected void drawCubicBezier(ILineDataSet dataSet) {
 
