@@ -5,7 +5,9 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PathMeasure;
 import android.graphics.drawable.Drawable;
+import android.util.Log;
 
 import com.github.mikephil.charting.animation.ChartAnimator;
 import com.github.mikephil.charting.charts.LineChart;
@@ -55,6 +57,9 @@ public class LineChartRenderer extends LineRadarRenderer {
 
     protected Path cubicPath = new Path();
     protected Path cubicFillPath = new Path();
+
+    private Path animatedPath = new Path();
+    private PathMeasure pathMeasure = new PathMeasure();
 
     public LineChartRenderer(LineDataProvider chart, ChartAnimator animator,
                              ViewPortHandler viewPortHandler) {
@@ -138,15 +143,16 @@ public class LineChartRenderer extends LineRadarRenderer {
 
         cubicPath.reset();
 
-        if (mXBounds.range >= 1) {
 
-            Entry prev = dataSet.getEntryForIndex(mXBounds.min);
-            Entry cur = prev;
+        Entry prev = dataSet.getEntryForIndex(mXBounds.min);
+        Entry cur = prev;
+
+        if (prev != null) {
 
             // let the spline start
             cubicPath.moveTo(cur.getX(), cur.getY() * phaseY);
 
-            for (int j = mXBounds.min + 1; j <= mXBounds.range + mXBounds.min; j++) {
+            for (int j = mXBounds.min + 1; j <= mXBounds.max; j++) {
 
                 prev = cur;
                 cur = dataSet.getEntryForIndex(j);
@@ -161,11 +167,22 @@ public class LineChartRenderer extends LineRadarRenderer {
             }
         }
 
+        // https://stackoverflow.com/a/29246301
+        animatedPath.reset();
+        pathMeasure.setPath(cubicPath, false);
+        float length = pathMeasure.getLength();
+
+        float progress = mXBounds.min + mXBounds.range + mXBounds.rem;
+        float rate = progress / mXBounds.max;
+
+        pathMeasure.getSegment(0.0f, length * rate, animatedPath, true);
+        animatedPath.rLineTo(0.0f, 0.0f); // workaround to display on hardware accelerated canvas as described in docs
+
         // if filled is enabled, close the path
         if (dataSet.isDrawFilledEnabled()) {
 
             cubicFillPath.reset();
-            cubicFillPath.addPath(cubicPath);
+            cubicFillPath.addPath(animatedPath);
             // create a new path, this is bad for performance
             drawCubicFill(mBitmapCanvas, dataSet, cubicFillPath, trans, mXBounds);
         }
@@ -174,9 +191,9 @@ public class LineChartRenderer extends LineRadarRenderer {
 
         mRenderPaint.setStyle(Paint.Style.STROKE);
 
-        trans.pathValueToPixel(cubicPath);
+        trans.pathValueToPixel(animatedPath);
 
-        mBitmapCanvas.drawPath(cubicPath, mRenderPaint);
+        mBitmapCanvas.drawPath(animatedPath, mRenderPaint);
 
         mRenderPaint.setPathEffect(null);
     }
