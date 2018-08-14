@@ -209,7 +209,7 @@ public class LineChartRenderer extends LineRadarRenderer {
     //---------------------------------------------------
     // Taken from PathInterpolatorCompat
 
-    private static final int NUM_POINTS = 50;
+    private static final int NUM_POINTS = 200;
     private float[] mX = new float[NUM_POINTS];
     private float[] mDistance = new float[NUM_POINTS];
 
